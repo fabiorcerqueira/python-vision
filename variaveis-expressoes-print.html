@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Python Vision — Variáveis, Expressões e Print</title>
+<style>
+:root{--bg:#f5f7fb;--panel:#fff;--ink:#182033;--muted:#667089;--line:#dbe2ee;--accent:#5b49d6;--nav:#111a31;--code:#101827}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--nav);color:#fff;min-height:56px;padding:10px 18px;display:flex;align-items:center}
+.brand{font-size:26px;font-weight:800}.brand span{color:#43d7c2}.tag{opacity:.82;margin-left:18px}
+main{padding:22px}h1{margin:0;font-size:31px}.lead{color:#556077;margin:6px 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 30px rgba(28,42,72,.05)}
+.pad{padding:16px}.card h3{margin:0 0 12px;color:#5142be}
+textarea{width:100%;height:285px;background:var(--code);color:#edf2ff;border:0;border-radius:12px;padding:16px;font:16px/1.6 ui-monospace,monospace;resize:vertical;outline:none}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:9px;font-weight:800;cursor:pointer}
+.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.speed{margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fbfcff}
+.speedtop{display:flex;justify-content:space-between;margin-bottom:8px}.speedrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}.speedrow input{width:100%}
+.note{margin-top:12px;padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#fbfcff;color:var(--muted);font-size:14px;line-height:1.45}
+.widget{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fbfcff;margin-bottom:12px}.widget h4{margin:0 0 9px;color:#4d3fb3}
+.codeview,.consolebox{background:var(--code);color:#eef4ff;border-radius:10px;padding:12px;font:15px/1.65 ui-monospace,monospace;white-space:pre-wrap}
+.line{display:block;padding:2px 7px;border-radius:6px}.line.active{background:#39306f}.num{display:inline-block;width:24px;opacity:.5}
+.memory{display:flex;gap:10px;flex-wrap:wrap}.varbox{min-width:115px;border:2px solid #cbd4e5;background:#fff;border-radius:11px;padding:12px;text-align:center}.varbox b{display:block;font-size:24px;color:#19748c}.varname{font-size:13px;color:#616c82}
+.flow{display:flex;align-items:center;justify-content:center;gap:10px;min-height:80px;flex-wrap:wrap}.token{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-weight:800}.arrow{font-size:24px;color:#6e7790}
+.bottom{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.consolebox{min-height:120px}
+@media(max-width:1000px){.grid,.bottom{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div class="brand">Python<span>Vision</span></div><div class="tag">Veja o programa acontecer.</div></header>
+<main>
+<h1>Experimente variáveis, expressões e saída de dados</h1>
+<div class="lead">Visualização dos conceitos de: variáveis, expressões e saída de dados com <code>print()</code>.</div>
+
+<div class="grid">
+<section class="card pad">
+<h3>Código Python</h3>
+<textarea id="editor">x = 10
+y = 5
+soma = x + y
+dobro = soma * 2
+print(soma)
+print(dobro)
+y = -4
+print(y)</textarea>
+<div class="controls">
+<button class="primary" id="run">▶ Executar</button>
+<button id="step">⏭ Próximo passo</button>
+<button id="reset">↻ Reiniciar</button>
+</div>
+<div class="speed">
+<div class="speedtop"><strong>Velocidade da execução</strong><span id="speedLabel">1,2 s por linha</span></div>
+<div class="speedrow"><span>🐢</span><input id="speedSlider" type="range" min="300" max="3000" step="100" value="2100"><span>🐇</span></div>
+</div>
+<div class="note">São executadas apenas atribuições de variáveis, expressões aritméticas e <code>print()</code>. Outros comandos serão apenas percorridos pela barra de execução, sem alterar o estado do programa.</div>
+</section>
+
+<section class="card pad">
+<div class="widget"><h4>1. Linha de execução</h4><div class="codeview" id="codeview"></div></div>
+<div class="widget"><h4>2. Variáveis</h4><div class="memory" id="memory"></div></div>
+<div class="widget"><h4>3. Expressão</h4><div class="flow" id="expression"><span class="token">aguardando</span></div></div>
+</section>
+</div>
+
+<div class="bottom">
+<section class="card pad"><h3>Estado do programa</h3><div class="consolebox" id="stateBox">Linha atual: —
+
+Variáveis:
+—</div></section>
+<section class="card pad"><h3>Saída</h3><div class="consolebox" id="output">Nenhuma saída ainda.</div></section>
+</div>
+</main>
+
+<script>
+const editor=document.getElementById('editor'),
+codeview=document.getElementById('codeview'),
+memory=document.getElementById('memory'),
+expression=document.getElementById('expression'),
+stateBox=document.getElementById('stateBox'),
+output=document.getElementById('output'),
+speedSlider=document.getElementById('speedSlider'),
+speedLabel=document.getElementById('speedLabel'),
+runBtn=document.getElementById('run'),
+stepBtn=document.getElementById('step'),
+resetBtn=document.getElementById('reset');
+let executionSpeed=3300-Number(speedSlider.value);
+let rt={lines:[],pc:0,current:null,vars:{},out:[],timer:null,running:false,finished:false,pendingExpression:null};
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function renderCode(active=-1){codeview.innerHTML='';rt.lines.forEach((l,i)=>{const s=document.createElement('span');s.className='line'+(i===active?' active':'');s.innerHTML=`<span class="num">${i+1}</span>${esc(l)||'&nbsp;'}`;codeview.appendChild(s)})}
+function renderMemory(){memory.innerHTML='';const e=Object.entries(rt.vars);if(!e.length){memory.innerHTML='<span class="token">nenhuma variável</span>';return}e.forEach(([k,v])=>{const d=document.createElement('div');d.className='varbox';d.innerHTML=`<span class="varname">${k}</span><b>${v===true?'True':v===false?'False':v}</b>`;memory.appendChild(d)})}
+function renderState(){const vars=Object.entries(rt.vars).map(([k,v])=>`${k} = ${v===true?'True':v===false?'False':v}`).join('\n')||'—';const line=rt.finished?'fim':(rt.current!==null?rt.current+1:'—');stateBox.textContent=`Linha atual: ${line}\n\nVariáveis:\n${vars}`;output.textContent=rt.out.length?rt.out.join('\n'):'Nenhuma saída ainda.'}
+
+
+
+function tokenizePythonArithmetic(expr){
+  const tokens=[];
+  let i=0;
+
+  while(i<expr.length){
+    const c=expr[i];
+
+    if(/\s/.test(c)){
+      i++;
+      continue;
+    }
+
+    if(/[0-9.]/.test(c)){
+      let text='';
+      let dots=0;
+
+      while(i<expr.length && /[0-9.]/.test(expr[i])){
+        if(expr[i]==='.') dots++;
+        text+=expr[i++];
+      }
+
+      if(dots>1 || text==='.') throw Error('invalid number');
+
+      tokens.push({
+        type:'number',
+        value:Number(text)
+      });
+      continue;
+    }
+
+    if(/[A-Za-z_]/.test(c)){
+      let name='';
+
+      while(i<expr.length && /[A-Za-z0-9_]/.test(expr[i])){
+        name+=expr[i++];
+      }
+
+      tokens.push({
+        type:'name',
+        value:name
+      });
+      continue;
+    }
+
+    const two=expr.slice(i,i+2);
+
+    if(two==='**' || two==='//'){
+      tokens.push({
+        type:'op',
+        value:two
+      });
+      i+=2;
+      continue;
+    }
+
+    if('+-*/%()'.includes(c)){
+      tokens.push({
+        type:c==='(' || c===')' ? 'paren' : 'op',
+        value:c
+      });
+      i++;
+      continue;
+    }
+
+    throw Error('unsupported expression');
+  }
+
+  tokens.push({type:'eof',value:null});
+  return tokens;
+}
+
+function pythonModulo(a,b){
+  if(b===0) throw Error('division by zero');
+
+  /*
+    Python's modulo result follows the sign of the divisor,
+    unlike JavaScript's remainder operator for negative values.
+  */
+  return ((a % b) + b) % b;
+}
+
+function pythonFloorDivide(a,b){
+  if(b===0) throw Error('division by zero');
+  return Math.floor(a/b);
+}
+
+function evalPythonArithmetic(expr){
+  const tokens=tokenizePythonArithmetic(expr);
+  let pos=0;
+
+  function peek(){
+    return tokens[pos];
+  }
+
+  function take(value=null){
+    const token=tokens[pos];
+
+    if(value!==null && token.value!==value){
+      throw Error('unexpected token');
+    }
+
+    pos++;
+    return token;
+  }
+
+  function atom(){
+    const token=peek();
+
+    if(token.type==='number'){
+      take();
+      return token.value;
+    }
+
+    if(token.type==='name'){
+      take();
+
+      if(!(token.value in rt.vars)){
+        throw Error('unknown variable');
+      }
+
+      const value=rt.vars[token.value];
+
+      if(typeof value!=='number'){
+        throw Error('non-numeric variable');
+      }
+
+      return value;
+    }
+
+    if(token.value==='('){
+      take('(');
+      const value=expressionRule();
+      take(')');
+      return value;
+    }
+
+    throw Error('expected value');
+  }
+
+  /*
+    Python precedence:
+      power      **
+      unary      +x, -x
+      term       *, /, //, %
+      expression +, -
+
+    The right side of ** is parsed as a factor, matching Python:
+      -2**2  -> -(2**2)
+      2**-2  -> 2**(-2)
+  */
+  function power(){
+    let left=atom();
+
+    if(peek().value==='**'){
+      take('**');
+      const right=factor();
+      left=left**right;
+    }
+
+    return left;
+  }
+
+  function factor(){
+    if(peek().value==='+'){
+      take('+');
+      return +factor();
+    }
+
+    if(peek().value==='-'){
+      take('-');
+      return -factor();
+    }
+
+    return power();
+  }
+
+  function term(){
+    let left=factor();
+
+    while(
+      peek().value==='*' ||
+      peek().value==='/' ||
+      peek().value==='//' ||
+      peek().value==='%'
+    ){
+      const op=take().value;
+      const right=factor();
+
+      if(op==='*'){
+        left*=right;
+      }
+      else if(op==='/'){
+        if(right===0) throw Error('division by zero');
+        left/=right;
+      }
+      else if(op==='//'){
+        left=pythonFloorDivide(left,right);
+      }
+      else if(op==='%'){
+        left=pythonModulo(left,right);
+      }
+    }
+
+    return left;
+  }
+
+  function expressionRule(){
+    let left=term();
+
+    while(peek().value==='+' || peek().value==='-'){
+      const op=take().value;
+      const right=term();
+
+      if(op==='+') left+=right;
+      else left-=right;
+    }
+
+    return left;
+  }
+
+  const result=expressionRule();
+
+  if(peek().type!=='eof'){
+    throw Error('unexpected trailing token');
+  }
+
+  if(typeof result!=='number' || Number.isNaN(result)){
+    throw Error('invalid result');
+  }
+
+  return result;
+}
+
+
+function evalComparison(text){
+  const ops=['>=','<=','==','!=','>','<'];
+
+  for(const op of ops){
+    const idx=text.indexOf(op);
+    if(idx!==-1){
+      const left=evalPythonArithmetic(text.slice(0,idx).trim());
+      const right=evalPythonArithmetic(text.slice(idx+op.length).trim());
+
+      switch(op){
+        case '>=': return left>=right;
+        case '<=': return left<=right;
+        case '==': return left==right;
+        case '!=': return left!=right;
+        case '>': return left>right;
+        case '<': return left<right;
+      }
+    }
+  }
+
+  return evalPythonArithmetic(text);
+}
+
+function evalLogical(expr){
+  expr=expr.trim();
+
+  // or
+  let level=0;
+  for(let i=expr.length-1;i>=0;i--){
+    const c=expr[i];
+    if(c===')') level++;
+    else if(c==='(') level--;
+    else if(level===0 && expr.slice(i-2,i+1)==='or '){
+      return Boolean(evalLogical(expr.slice(0,i-2))) ||
+             Boolean(evalLogical(expr.slice(i+1)));
+    }
+  }
+
+  // and
+  level=0;
+  for(let i=expr.length-1;i>=0;i--){
+    const c=expr[i];
+    if(c===')') level++;
+    else if(c==='(') level--;
+    else if(level===0 && expr.slice(i-3,i+1)==='and '){
+      return Boolean(evalLogical(expr.slice(0,i-3))) &&
+             Boolean(evalLogical(expr.slice(i+1)));
+    }
+  }
+
+  if(expr.startsWith('not ')){
+    return !Boolean(evalLogical(expr.slice(4)));
+  }
+
+  return evalComparison(expr);
+}
+
+function evalExpr(expr){
+  expr=expr.trim();
+
+  if(/^["'].*["']$/.test(expr)){
+    return expr.slice(1,-1);
+  }
+
+  if(expr==='True') return true;
+  if(expr==='False') return false;
+
+  if(/(\band\b|\bor\b|\bnot\b|>=|<=|==|!=|>|<)/.test(expr)){
+    return evalLogical(expr);
+  }
+
+  if(/^[-]?\d+(\.\d+)?$/.test(expr)){
+    return Number(expr);
+  }
+
+  if(/^[A-Za-z_]\w*$/.test(expr) && expr in rt.vars){
+    return rt.vars[expr];
+  }
+
+  return evalPythonArithmetic(expr);
+}
+
+function showExpr(expr,val){expression.innerHTML=`<span class="token">${esc(expr)}</span><span class="arrow">→</span><span class="token">${val}</span>`}
+function assignment(line){return /^[A-Za-z_]\w*\s*=\s*[^=].*$/.test(line)}
+
+function execAssignment(line){
+  const p=line.indexOf('='),name=line.slice(0,p).trim(),expr=line.slice(p+1).trim();
+  try{const val=evalExpr(expr);rt.vars[name]=val;const isSimpleLiteral=
+    /^[-]?\d+(\.\d+)?$/.test(expr.trim()) ||
+    /^["'].*["']$/.test(expr.trim());
+
+  if(
+    !isSimpleLiteral &&
+    (
+      /[+\-*/%()]/.test(expr) ||
+      (/[A-Za-z_]\w*/.test(expr) && expr!==name)
+    )
+  ){
+    rt.pendingExpression={expr:expr,val:val};
+  }}catch(e){}
+  rt.pc++;
+}
+
+function evalFString(text){
+  let body=text.slice(2,-1);
+
+  return body.replace(/\{([^{}]+)\}/g,(_,content)=>{
+    try{
+      let expr=content.trim();
+      let format=null;
+
+      const colonIndex=expr.lastIndexOf(':');
+
+      if(colonIndex!==-1){
+        format=expr.slice(colonIndex+1).trim();
+        expr=expr.slice(0,colonIndex).trim();
+      }
+
+      const value=evalExpr(expr);
+
+      if(format){
+        const fm=format.match(/^\.(\d+)f$/);
+
+        if(fm){
+          const decimals=Number(fm[1]);
+
+          if(typeof value!=='number' || !Number.isFinite(value)){
+            return value===true?'True':value===false?'False':String(value);
+          }
+
+          return value.toFixed(decimals);
+        }
+      }
+
+      return value===true?'True':value===false?'False':String(value);
+    }catch{
+      return `{${content}}`;
+    }
+  });
+}
+
+function execPrint(line){
+  const m=line.match(/^print\((.*)\)$/);
+
+  if(!m){
+    rt.pc++;
+    return;
+  }
+
+  const inside=m[1].trim();
+
+  try{
+    if(/^f(['"]).*\1$/.test(inside)){
+      rt.out.push(evalFString(inside));
+    }else{
+      const v=evalExpr(inside);
+      rt.out.push(v===true?'True':v===false?'False':String(v));
+    }
+  }catch(e){}
+
+  rt.pc++;
+}
+
+function applyCurrentLine(){
+  const executedIndex = rt.current;
+  const line = rt.lines[executedIndex].trim();
+
+  // Execute the current instruction first, but do not render its effects yet.
+  if(line==='') rt.pc++;
+  else if(/^print\s*\(/.test(line)) execPrint(line);
+  else if(assignment(line)) execAssignment(line);
+  else rt.pc++;
+
+  if(rt.pc>=rt.lines.length){
+    // At the end, clear the highlight and reveal the final state together.
+    rt.finished=true;
+    rt.running=false;
+    rt.current=null;
+    renderCode(-1);
+    renderMemory();
+    renderState();
+    return;
+  }
+
+  // Move the blue bar to the next line first.
+  rt.current = rt.pc;
+  renderCode(rt.current);
+
+  // Only after the visual jump, reveal all effects of the line that just ran.
+  renderMemory();
+  if(rt.pendingExpression){
+    showExpr(rt.pendingExpression.expr, rt.pendingExpression.val);
+    rt.pendingExpression=null;
+  }
+  renderState();
+
+  if(rt.running){
+    rt.timer=setTimeout(applyCurrentLine,executionSpeed);
+  }
+}
+
+function executeStep(){
+  if(rt.finished)return false;
+
+  if(rt.pc>=rt.lines.length){
+    rt.finished=true;
+    rt.running=false;
+    rt.current=null;
+    renderCode(-1);
+    renderState();
+    return false;
+  }
+
+  // The current line is already highlighted after load/reset.
+  // Keep it highlighted while waiting for execution.
+  rt.current=rt.pc;
+  renderCode(rt.current);
+  renderState();
+
+  if(rt.running){
+    rt.timer=setTimeout(applyCurrentLine,Math.max(200,executionSpeed*0.7));
+  }
+
+  return true;
+}
+function reset(){
+  clearTimeout(rt.timer);
+  rt={
+    lines:editor.value.split('\n'),
+    pc:0,
+    current:0,
+    vars:{},
+    out:[],
+    timer:null,
+    running:false,
+    finished:false,
+    pendingExpression:null
+  };
+  renderCode(rt.lines.length ? 0 : -1);
+  renderMemory();
+  expression.innerHTML='<span class="token">aguardando</span>';
+  renderState();
+}
+function auto(){}
+
+runBtn.onclick=()=>{
+  if(rt.finished){
+    reset();
+  }
+  rt.running=true;
+  clearTimeout(rt.timer);
+  rt.timer=setTimeout(
+    applyCurrentLine,
+    Math.max(200,executionSpeed*0.7)
+  );
+};
+stepBtn.onclick=()=>{
+  rt.running=false;
+  if(rt.finished)return;
+
+  clearTimeout(rt.timer);
+
+  // Execute the line currently highlighted, then advance.
+  rt.timer=setTimeout(
+    applyCurrentLine,
+    Math.max(200,executionSpeed*0.7)
+  );
+};
+resetBtn.onclick=reset;
+speedSlider.oninput=()=>{executionSpeed=3300-Number(speedSlider.value);speedLabel.textContent=`${(executionSpeed/1000).toFixed(1).replace('.',',')} s por linha`};
+editor.oninput=reset;
+reset();
+</script>
+</body>
+</html>

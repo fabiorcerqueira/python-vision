@@ -1,0 +1,1029 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Python Vision — Protótipo Integrado</title>
+<style>
+:root{
+  --bg:#f5f7fb;
+  --panel:#ffffff;
+  --ink:#182033;
+  --muted:#667089;
+  --line:#dbe2ee;
+  --accent:#5b49d6;
+  --accent-soft:#f0edff;
+  --nav:#111a31;
+  --ok:#1f9348;
+  --bad:#c43e42;
+  --code:#101827;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.app{display:grid;grid-template-columns:1fr;min-height:100vh}
+aside{background:var(--nav);color:#fff;padding:22px 16px;display:flex;align-items:center;justify-content:center;min-height:56px}
+.brand{font-size:26px;font-weight:800}.brand span{color:#43d7c2}.tag{opacity:.8;margin-top:3px}
+.nav{display:grid;gap:8px;margin-top:24px}.nav div{padding:10px 12px;border-radius:9px}.nav .active{background:linear-gradient(135deg,#4f39c3,#765fea);font-weight:700}
+.tip{margin-top:auto;border:1px solid #32405b;background:#15213c;border-radius:12px;padding:13px;font-size:14px;line-height:1.45}
+main{padding:22px}
+h1{margin:0;font-size:31px}.lead{color:#556077;margin:6px 0 18px}
+.topgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:15px;box-shadow:0 10px 30px rgba(28,42,72,.05)}
+.pad{padding:16px}
+.card h3{margin:0 0 12px;color:#5142be}
+textarea{width:100%;height:250px;background:var(--code);color:#edf2ff;border:none;border-radius:12px;padding:16px;font:16px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+button{border:1px solid var(--line);background:#fff;padding:10px 14px;border-radius:9px;font-weight:800;cursor:pointer}
+button.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.workspace{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.widget{border:1px solid var(--line);border-radius:12px;padding:14px;min-height:150px;background:#fbfcff}
+.widget h4{margin:0 0 9px;font-size:15px;color:#4d3fb3}
+.execution{grid-column:1/-1;min-height:130px}
+.codeview{background:var(--code);color:#edf2ff;padding:12px;border-radius:10px;font:15px/1.7 ui-monospace,SFMono-Regular,Menlo,monospace}
+.line{display:block;padding:2px 7px;border-radius:6px}.line.active{background:#39306f}.num{display:inline-block;width:24px;opacity:.5}
+.memoryBox{display:flex;gap:10px;flex-wrap:wrap}
+.varbox{min-width:115px;border:2px solid #cbd4e5;background:#fff;border-radius:11px;padding:12px;text-align:center}
+.varbox b{display:block;font-size:24px;color:#19748c}.varname{color:#616c82;font-size:13px}
+.flow{display:flex;align-items:center;justify-content:center;gap:10px;min-height:80px;flex-wrap:wrap}
+.token{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-weight:800}
+.arrow{font-size:24px;color:#6e7790}.resultTrue{color:var(--ok)}.resultFalse{color:var(--bad)}
+.branch{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.path{border:2px dashed #cfd7e5;border-radius:10px;padding:12px;text-align:center;opacity:.55}
+.path.active{border-style:solid;border-color:var(--accent);background:var(--accent-soft);opacity:1}
+.console{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.consolebox{background:#0f1726;color:#eef4ff;border-radius:12px;padding:14px;min-height:100px;font:15px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;}
+@media(max-width:1050px){.app{grid-template-columns:1fr}aside{display:none}.topgrid,.console{grid-template-columns:1fr}}
+
+.ifVisual{margin-top:16px}
+.ifVisualGrid{display:grid;grid-template-columns:1fr 220px;gap:16px;align-items:center}
+.doorScene{min-height:220px;border-radius:14px;background:linear-gradient(#cdeeff 0 46%,#93d16f 46%);position:relative;overflow:hidden;border:1px solid var(--line)}
+.wall{position:absolute;left:50%;top:40px;transform:translateX(-50%);width:170px;height:170px;background:#dbc5a3;border:4px solid #b9986e;border-radius:8px}
+.doorFrame{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);width:96px;height:132px;background:#4f3629;border:6px solid #3f2b22;border-bottom:none;perspective:500px}
+.doorLeaf{position:absolute;inset:0;background:#7a523b;transform-origin:left center;transition:transform .75s ease, box-shadow .75s ease}
+.doorLeaf:after{content:"";position:absolute;right:12px;top:59px;width:10px;height:10px;border-radius:50%;background:#e3c26e}
+.doorFrame.open .doorLeaf{transform:rotateY(-105deg);box-shadow:18px 0 22px rgba(0,0,0,.22)}
+
+
+.robotVisual{
+  position:absolute;
+  left:18%;
+  bottom:28px;
+  font-size:48px;
+  z-index:5;
+  transition:left .9s ease, transform .9s ease, opacity .45s ease;
+}
+.robotVisual.entering{
+  left:46%;
+  transform:scale(.82);
+}
+.robotVisual.disappear{
+  opacity:0;
+  transform:scale(.45);
+}
+.ifVisualText{border:1px solid var(--line);background:#fbfcff;border-radius:12px;padding:16px;line-height:1.5}
+.resultBadge{display:inline-block;margin-top:10px;padding:8px 12px;border-radius:9px;font-weight:900;background:#f4f6fa;border:1px solid var(--line)}
+.resultBadge.true{background:#eff9f1;border-color:#cce8d1;color:var(--ok)}
+.resultBadge.false{background:#fff1f1;border-color:#f1cccc;color:var(--bad)}
+@media(max-width:1050px){.ifVisualGrid{grid-template-columns:1fr}}
+
+
+.readonlyCode{
+  width:100%;
+  min-height:250px;
+  background:var(--code);
+  color:#edf2ff;
+  border-radius:12px;
+  padding:16px;
+  font:16px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.readonlyLine{
+  min-height:26px;
+  white-space:pre;
+}
+.readonlyLine.indent{
+  padding-left:28px;
+}
+.inlineValue{
+  width:74px;
+  background:#2c3450;
+  color:#ffffff;
+  border:1px solid #7f8bb1;
+  border-radius:7px;
+  padding:3px 7px;
+  font:inherit;
+  font-weight:800;
+  outline:none;
+}
+.inlineValue:focus{
+  border-color:#8d7cff;
+  box-shadow:0 0 0 2px rgba(141,124,255,.25);
+}
+.valueHint{
+  margin-top:10px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fbfcff;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.45;
+}
+.valueHint code{
+  color:#4c3db2;
+  font-weight:800;
+}
+
+
+.inputPanel{
+  margin-top:12px;
+  background:#0f1726;
+  color:#eef4ff;
+  border-radius:12px;
+  padding:14px;
+}
+.inputPanelTitle{
+  font-weight:800;
+  margin-bottom:10px;
+  color:#aeb8d0;
+}
+.inputPanel label{
+  display:block;
+  margin-bottom:8px;
+  font:15px ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+.consoleInputRow{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.consoleInputRow .prompt{
+  font:bold 18px ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:#62d6ef;
+}
+.consoleInputRow input{
+  flex:1;
+  background:#192338;
+  color:#fff;
+  border:1px solid #43506d;
+  border-radius:8px;
+  padding:9px 10px;
+  font:16px ui-monospace,SFMono-Regular,Menlo,monospace;
+  outline:none;
+}
+.consoleInputRow input:focus{
+  border-color:#7f6df2;
+  box-shadow:0 0 0 2px rgba(127,109,242,.22);
+}
+.inputFlow{min-height:80px}
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside style="padding:10px 18px;display:flex;align-items:center;justify-content:flex-start;">
+  <div class="brand">Python<span>Vision</span></div>
+  <div class="tag" style="margin-left:18px;">Veja o programa acontecer.</div>
+</aside>
+
+
+<main>
+<h1>Faça o robô entrar</h1>
+<div class="lead">Visualização dos conceitos de: variáveis, expressões, entrada e saída e comandos condicionais.</div>
+
+<div class="topgrid">
+  <section class="card pad">
+    <h3>Código Python</h3>
+    <div class="readonlyCode" id="readonlyCode" aria-label="Código Python somente leitura">
+      <div class="readonlyLine">energia = int(input("Energia disponível: "))</div>
+      <div class="readonlyLine">energia_necessaria = 8</div>
+      <div class="readonlyLine">energia_restante = energia - energia_necessaria</div>
+      <div class="readonlyLine">&nbsp;</div>
+      <div class="readonlyLine">if energia_restante &gt;= 0:</div>
+      <div class="readonlyLine indent">print("Atravessar")</div>
+      <div class="readonlyLine">else:</div>
+      <div class="readonlyLine indent">print("Esperar")</div>
+    </div>
+
+    <div class="inputPanel">
+      <div class="inputPanelTitle">Console de entrada</div>
+      <label for="energiaInput">Energia disponível:</label>
+      <div class="consoleInputRow">
+        <span class="prompt">&gt;</span>
+        <input id="energiaInput" type="number" min="0" max="120" value="0" aria-label="Energia disponível">
+      </div>
+    </div>
+
+    <div class="valueHint">
+      Digite um valor no console e execute o programa para observar como o <code>input()</code> alimenta a variável <code>energia</code>.
+    </div>
+
+    <div class="controls">
+      <button class="primary" id="run">▶ Executar</button>
+      <button id="step">⏭ Próximo passo</button>
+      <button id="reset">↻ Reiniciar</button>
+    </div>
+
+    <div style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fbfcff">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px">
+        <strong>Velocidade da execução</strong>
+        <span id="speedLabel">1,2 s por linha</span>
+      </div>
+      <div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center">
+        <span aria-hidden="true">🐢</span>
+        <input id="speedSlider" type="range" min="300" max="3000" step="100" value="1200" style="width:100%">
+        <span aria-hidden="true">🐇</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card pad">
+    <div class="workspace">
+      <div class="widget execution">
+        <h4>1. Variáveis</h4>
+        <div class="codeview" id="codeview"></div>
+      </div>
+
+      <div class="widget">
+        <h4>2. Entrada (input)</h4>
+        <div class="flow inputFlow" id="inputFlow">
+          <span class="token">aguardando</span>
+        </div>
+      </div>
+
+      <div class="widget">
+        <h4>3. Conversão de tipo</h4>
+        <div class="flow" id="conversionFlow">
+          <span class="token">aguardando</span>
+        </div>
+      </div>
+
+      <div class="widget">
+        <h4>4. Variáveis</h4>
+        <div class="memoryBox" id="memory"></div>
+      </div>
+
+      <div class="widget">
+        <h4>5. Expressão</h4>
+        <div class="flow" id="expression">
+          <span class="token">aguardando</span>
+        </div>
+      </div>
+
+      <div class="widget">
+        <h4>6. Comparação</h4>
+        <div class="flow" id="comparison">
+          <span class="token">aguardando</span>
+        </div>
+      </div>
+
+      <div class="widget">
+        <h4>7. Fluxo do if</h4>
+        <div class="branch">
+          <div class="path" id="truePath"><b>True</b><br><span id="truePathText">executa o bloco do if</span></div>
+          <div class="path" id="falsePath"><b>False</b><br><span id="falsePathText">executa o bloco do else</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="console">
+  <section class="card pad">
+    <h3>Estado do programa</h3>
+    <div class="consolebox" id="stateBox">Linha atual: —
+
+Variáveis:
+—</div>
+  </section>
+  <section class="card pad">
+    <h3>Saída</h3>
+    <div class="consolebox" id="output">Nenhuma saída ainda.</div>
+  </section>
+
+</div>
+
+<section class="card ifVisual">
+  <div class="pad">
+    <h3>Faça o robô entrar</h3>
+    <div class="ifVisualGrid">
+      <div class="doorScene">
+        <div class="robotVisual" id="robotVisual">🤖</div>
+        <div class="wall"></div>
+        <div class="doorFrame closed" id="doorFrame">
+          <div class="doorLeaf"></div>
+        </div>
+      </div>
+      <div class="ifVisualText">
+        <b>Resultado da condição</b>
+        <p>A porta representa o efeito visual da decisão tomada pelo programa.</p>
+        <div class="resultBadge" id="doorResult">Aguardando execução</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+const energiaInput = document.getElementById('energiaInput');
+const codeview = document.getElementById('codeview');
+const memory = document.getElementById('memory');
+const inputFlow = document.getElementById('inputFlow');
+const conversionFlow = document.getElementById('conversionFlow');
+const expression = document.getElementById('expression');
+const comparison = document.getElementById('comparison');
+const truePath = document.getElementById('truePath');
+const falsePath = document.getElementById('falsePath');
+const truePathText = document.getElementById('truePathText');
+const falsePathText = document.getElementById('falsePathText');
+const output = document.getElementById('output');
+const stateBox = document.getElementById('stateBox');
+const speedSlider = document.getElementById('speedSlider');
+const speedLabel = document.getElementById('speedLabel');
+const doorFrame = document.getElementById('doorFrame');
+const doorResult = document.getElementById('doorResult');
+const robotVisual = document.getElementById('robotVisual');
+
+const runBtn = document.getElementById('run');
+const stepBtn = document.getElementById('step');
+const resetBtn = document.getElementById('reset');
+
+let robotEnterTimer = null;
+let robotDisappearTimer = null;
+let executionSpeed = Number(speedSlider.value);
+
+let runtime = {
+  lines: [],
+  pc: 0,
+  currentLine: 0,
+  vars: {},
+  condition: null,
+  out: [],
+  timer: null,
+  running: false,
+  finished: false,
+  pendingExpression: null,
+  pendingComparison: null,
+  pendingInput: null,
+  pendingConversion: null,
+  pendingBranch: null,
+  pendingDoor: false
+};
+
+function getLines() {
+  return [
+    'energia = int(input("Energia disponível: "))',
+    'energia_necessaria = 8',
+    'energia_restante = energia - energia_necessaria',
+    '',
+    'if energia_restante >= 0:',
+    '    print("Atravessar")',
+    'else:',
+    '    print("Esperar")'
+  ];
+}
+
+function indentOf(line) {
+  return line.length - line.trimStart().length;
+}
+
+function nextNonBlankIndex(start) {
+  for (let i = start; i < runtime.lines.length; i++) {
+    if (runtime.lines[i].trim() !== '') return i;
+  }
+  return runtime.lines.length;
+}
+
+function findBlockEnd(headerIndex) {
+  const headerIndent = indentOf(runtime.lines[headerIndex]);
+
+  for (let i = headerIndex + 1; i < runtime.lines.length; i++) {
+    const line = runtime.lines[i];
+
+    if (line.trim() === '') continue;
+
+    if (indentOf(line) <= headerIndent) {
+      return i;
+    }
+  }
+
+  return runtime.lines.length;
+}
+
+function findElseForIf(ifIndex) {
+  const ifIndent = indentOf(runtime.lines[ifIndex]);
+
+  for (let i = ifIndex + 1; i < runtime.lines.length; i++) {
+    const line = runtime.lines[i];
+
+    if (line.trim() === '') continue;
+
+    const currentIndent = indentOf(line);
+
+    if (currentIndent < ifIndent) return -1;
+
+    if (currentIndent === ifIndent) {
+      if (line.trim() === 'else:') return i;
+      return -1;
+    }
+  }
+
+  return -1;
+}
+
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function renderCode(active = -1) {
+  codeview.innerHTML = '';
+
+  runtime.lines.forEach((line, i) => {
+    const row = document.createElement('span');
+    row.className = 'line' + (i === active ? ' active' : '');
+    row.innerHTML =
+      `<span class="num">${i + 1}</span>${escapeHtml(line) || '&nbsp;'}`;
+    codeview.appendChild(row);
+  });
+}
+
+function renderMemory() {
+  memory.innerHTML = '';
+  const entries = Object.entries(runtime.vars);
+
+  if (!entries.length) {
+    memory.innerHTML = '<span class="token">nenhuma variável</span>';
+    return;
+  }
+
+  entries.forEach(([name, value]) => {
+    const box = document.createElement('div');
+    box.className = 'varbox';
+    box.innerHTML =
+      `<span class="varname">${name}</span><b>${value}</b>`;
+    memory.appendChild(box);
+  });
+}
+
+function renderState() {
+  const vars = Object.entries(runtime.vars)
+    .map(([name, value]) => `${name} = ${value}`)
+    .join('\n') || '—';
+
+  const current =
+    runtime.finished
+      ? 'fim'
+      : (runtime.currentLine !== null ? runtime.currentLine + 1 : '—');
+
+  stateBox.textContent =
+    `Linha atual: ${current}\n\n` +
+    `Variáveis:\n${vars}`;
+
+  output.textContent =
+    runtime.out.length
+      ? runtime.out.join('\n')
+      : 'Nenhuma saída ainda.';
+}
+
+function showExpression(expr, result) {
+  expression.innerHTML =
+    `<span class="token">${escapeHtml(expr)}</span>` +
+    `<span class="arrow">→</span>` +
+    `<span class="token">${result}</span>`;
+}
+
+function showComparison(left, op, right, result) {
+  comparison.innerHTML =
+    `<span class="token">${left}</span>` +
+    `<span class="arrow">${op}</span>` +
+    `<span class="token">${right}</span>` +
+    `<span class="arrow">→</span>` +
+    `<span class="token ${result ? 'resultTrue' : 'resultFalse'}">${result}</span>`;
+}
+
+function clearBranch() {
+  truePath.classList.remove('active');
+  falsePath.classList.remove('active');
+}
+
+function resetRobotVisual() {
+  clearTimeout(robotEnterTimer);
+  clearTimeout(robotDisappearTimer);
+  robotVisual.classList.remove('entering', 'disappear');
+}
+
+function updateDoorVisualization() {
+  doorFrame.classList.remove('open', 'closed');
+  doorResult.classList.remove('true', 'false');
+  resetRobotVisual();
+
+  if (runtime.condition === true) {
+    doorFrame.classList.add('open');
+    doorResult.classList.add('true');
+    doorResult.textContent = 'True — porta aberta';
+
+    robotEnterTimer = setTimeout(() => {
+      robotVisual.classList.add('entering');
+
+      robotDisappearTimer = setTimeout(() => {
+        robotVisual.classList.add('disappear');
+      }, 900);
+    }, 700);
+  }
+  else if (runtime.condition === false) {
+    doorFrame.classList.add('closed');
+    doorResult.classList.add('false');
+    doorResult.textContent = 'False — porta fechada';
+  }
+  else {
+    doorFrame.classList.add('closed');
+    doorResult.textContent = 'Aguardando execução';
+  }
+}
+
+/*
+  Arithmetic evaluator:
+  - variables
+  - negative numbers
+  - + - * / %
+  - parentheses
+  - normal operator precedence
+*/
+function resolveVariables(expr) {
+  return expr.replace(/\b[A-Za-z_]\w*\b/g, name => {
+    if (!(name in runtime.vars)) {
+      throw new Error('unknown variable');
+    }
+
+    const value = runtime.vars[name];
+
+    if (typeof value === 'number') {
+      return String(value);
+    }
+
+    throw new Error('unsupported variable type');
+  });
+}
+
+function validateArithmetic(expr) {
+  if (!/^[0-9+\-*/%().\s]+$/.test(expr)) {
+    throw new Error('unsupported expression');
+  }
+}
+
+function evalValue(expr) {
+  expr = expr.trim();
+
+  if (/^["'].*["']$/.test(expr)) {
+    return expr.slice(1, -1);
+  }
+
+  if (/^-?\d+(\.\d+)?$/.test(expr)) {
+    return Number(expr);
+  }
+
+  if (/^[A-Za-z_]\w*$/.test(expr) && expr in runtime.vars) {
+    return runtime.vars[expr];
+  }
+
+  const resolved = resolveVariables(expr);
+  validateArithmetic(resolved);
+
+  const result =
+    Function(`"use strict"; return (${resolved});`)();
+
+  if (typeof result !== 'number' || Number.isNaN(result)) {
+    throw new Error('invalid result');
+  }
+
+  return result;
+}
+
+function evalCondition(expr) {
+  const match =
+    expr.match(/^(.+?)\s*(>=|<=|==|!=|>|<)\s*(.+)$/);
+
+  if (!match) {
+    throw new Error('invalid condition');
+  }
+
+  const leftExpr = match[1].trim();
+  const op = match[2];
+  const rightExpr = match[3].trim();
+
+  const left = evalValue(leftExpr);
+  const right = evalValue(rightExpr);
+
+  let result = false;
+
+  if (op === '>=') result = left >= right;
+  if (op === '<=') result = left <= right;
+  if (op === '==') result = left == right;
+  if (op === '!=') result = left != right;
+  if (op === '>') result = left > right;
+  if (op === '<') result = left < right;
+
+  runtime.pendingComparison = {
+    left,
+    op,
+    right,
+    result
+  };
+
+  return result;
+}
+
+function queueExpressionIfNeeded(expr, result) {
+  const trimmed = expr.trim();
+
+  const isSimpleLiteral =
+    /^-?\d+(\.\d+)?$/.test(trimmed) ||
+    /^["'].*["']$/.test(trimmed);
+
+  if (
+    !isSimpleLiteral &&
+    (
+      /[+\-*/%()]/.test(trimmed) ||
+      /^[A-Za-z_]\w*$/.test(trimmed)
+    )
+  ) {
+    runtime.pendingExpression = {
+      expr: trimmed,
+      result
+    };
+  }
+}
+
+function executeInputAssignment(line) {
+  const match =
+    line.match(/^(\w+)\s*=\s*int\(input\((.*)\)\)$/);
+
+  if (!match) return false;
+
+  const name = match[1];
+  const rawText = String(energiaInput.value);
+  const numericValue = parseInt(rawText, 10);
+
+  runtime.pendingInput = {
+    rawText
+  };
+
+  runtime.pendingConversion = {
+    rawText,
+    numericValue,
+    name
+  };
+
+  runtime.vars[name] = numericValue;
+  runtime.pc++;
+
+  return true;
+}
+
+function executeAssignment(line) {
+  const eq = line.indexOf('=');
+  const name = line.slice(0, eq).trim();
+  const expr = line.slice(eq + 1).trim();
+
+  try {
+    const value = evalValue(expr);
+    runtime.vars[name] = value;
+    queueExpressionIfNeeded(expr, value);
+  }
+  catch {
+    // Invalid expressions are ignored.
+  }
+
+  runtime.pc++;
+}
+
+function executePrint(line) {
+  const match = line.match(/^print\((.*)\)$/);
+
+  if (!match) {
+    runtime.pc++;
+    return;
+  }
+
+  try {
+    const value = evalValue(match[1].trim());
+    runtime.out.push(String(value));
+  }
+  catch {
+    // Unsupported print expressions are ignored.
+  }
+
+  runtime.pc++;
+}
+
+function executeIf(index, line) {
+  const conditionText = line.slice(3, -1).trim();
+  const elseIndex = findElseForIf(index);
+
+  truePathText.textContent = 'executa o bloco do if';
+  falsePathText.textContent =
+    elseIndex >= 0
+      ? 'executa o bloco do else'
+      : 'não executa o bloco do if';
+
+  let result = false;
+
+  try {
+    result = evalCondition(conditionText);
+  }
+  catch {
+    result = false;
+  }
+
+  runtime.condition = result;
+
+  runtime.pendingBranch = {
+    result
+  };
+
+  runtime.pendingDoor = true;
+
+  if (result) {
+    runtime.pc = nextNonBlankIndex(index + 1);
+  }
+  else {
+    if (elseIndex >= 0) {
+      runtime.pc = nextNonBlankIndex(elseIndex + 1);
+    }
+    else {
+      runtime.pc = findBlockEnd(index);
+    }
+  }
+}
+
+function executeElse(index) {
+  runtime.pc = findBlockEnd(index);
+}
+
+function skipInactiveElseBlockIfNeeded() {
+  while (runtime.pc < runtime.lines.length) {
+    const line = runtime.lines[runtime.pc];
+
+    if (line.trim() === '') {
+      runtime.pc++;
+      continue;
+    }
+
+    if (line.trim() === 'else:') {
+      executeElse(runtime.pc);
+      continue;
+    }
+
+    break;
+  }
+}
+
+function revealPendingEffects() {
+  renderMemory();
+
+  if (runtime.pendingInput) {
+    const {rawText} = runtime.pendingInput;
+
+    inputFlow.innerHTML =
+      `<span class="token">${rawText}</span>` +
+      `<span class="arrow">→</span>` +
+      `<span class="token">input()</span>` +
+      `<span class="arrow">→</span>` +
+      `<span class="token">"${rawText}"</span>`;
+
+    runtime.pendingInput = null;
+  }
+
+  if (runtime.pendingConversion) {
+    const {
+      rawText,
+      numericValue,
+      name
+    } = runtime.pendingConversion;
+
+    conversionFlow.innerHTML =
+      `<span class="token">"${rawText}"</span>` +
+      `<span class="arrow">→</span>` +
+      `<span class="token">int()</span>` +
+      `<span class="arrow">→</span>` +
+      `<span class="token">${numericValue}</span>` +
+      `<span class="arrow">→</span>` +
+      `<span class="token">${name}</span>`;
+
+    runtime.pendingConversion = null;
+  }
+
+  if (runtime.pendingExpression) {
+    showExpression(
+      runtime.pendingExpression.expr,
+      runtime.pendingExpression.result
+    );
+    runtime.pendingExpression = null;
+  }
+
+  if (runtime.pendingComparison) {
+    const p = runtime.pendingComparison;
+
+    showComparison(
+      p.left,
+      p.op,
+      p.right,
+      p.result
+    );
+
+    runtime.pendingComparison = null;
+  }
+
+  if (runtime.pendingBranch) {
+    clearBranch();
+
+    (
+      runtime.pendingBranch.result
+        ? truePath
+        : falsePath
+    ).classList.add('active');
+
+    runtime.pendingBranch = null;
+  }
+
+  if (runtime.pendingDoor) {
+    updateDoorVisualization();
+    runtime.pendingDoor = false;
+  }
+
+  renderState();
+}
+
+/*
+  Important visual rule:
+  The currently highlighted line changes state only when the blue bar
+  moves away from it.
+*/
+function applyCurrentLine() {
+  if (runtime.finished) return;
+
+  const executedIndex = runtime.currentLine;
+  const raw = runtime.lines[executedIndex];
+  const line = raw.trim();
+
+  if (line === '') {
+    runtime.pc++;
+  }
+  else if (/^\w+\s*=\s*int\(input\(/.test(line)) {
+    executeInputAssignment(line);
+  }
+  else if (/^\w+\s*=/.test(line) && !line.startsWith('if ')) {
+    executeAssignment(line);
+  }
+  else if (line.startsWith('if ') && line.endsWith(':')) {
+    executeIf(executedIndex, line);
+  }
+  else if (line === 'else:') {
+    executeElse(executedIndex);
+  }
+  else if (line.startsWith('print(') && line.endsWith(')')) {
+    executePrint(line);
+  }
+  else {
+    runtime.pc++;
+  }
+
+  /*
+    After the true block executes, Python skips the else block.
+    Resolve that jump before moving the blue bar.
+  */
+  skipInactiveElseBlockIfNeeded();
+
+  if (runtime.pc >= runtime.lines.length) {
+    runtime.finished = true;
+    runtime.running = false;
+    runtime.currentLine = null;
+
+    // The blue bar disappears at the same instant the final effects appear.
+    renderCode(-1);
+    revealPendingEffects();
+    return;
+  }
+
+  /*
+    First move the blue bar to the next instruction.
+    Then reveal the effects of the line that has just finished.
+  */
+  runtime.currentLine = runtime.pc;
+  renderCode(runtime.currentLine);
+  revealPendingEffects();
+
+  if (runtime.running) {
+    runtime.timer =
+      setTimeout(
+        applyCurrentLine,
+        executionSpeed
+      );
+  }
+}
+
+function reset() {
+  clearTimeout(runtime.timer);
+
+  runtime = {
+    lines: getLines(),
+    pc: 0,
+    currentLine: 0,
+    vars: {},
+    condition: null,
+    out: [],
+    timer: null,
+    running: false,
+    finished: false,
+    pendingExpression: null,
+    pendingComparison: null,
+    pendingInput: null,
+    pendingConversion: null,
+    pendingBranch: null,
+    pendingDoor: false
+  };
+
+  renderCode(runtime.lines.length ? 0 : -1);
+  renderMemory();
+
+  inputFlow.innerHTML =
+    '<span class="token">aguardando</span>';
+
+  conversionFlow.innerHTML =
+    '<span class="token">aguardando</span>';
+
+  expression.innerHTML =
+    '<span class="token">aguardando</span>';
+
+  comparison.innerHTML =
+    '<span class="token">aguardando</span>';
+
+  clearBranch();
+
+  truePathText.textContent =
+    'executa o bloco do if';
+
+  falsePathText.textContent =
+    'executa o bloco do else';
+
+  runtime.condition = null;
+  updateDoorVisualization();
+
+  renderState();
+}
+
+runBtn.addEventListener('click', () => {
+  if (runtime.finished) {
+    reset();
+  }
+
+  runtime.running = true;
+
+  clearTimeout(runtime.timer);
+
+  runtime.timer =
+    setTimeout(
+      applyCurrentLine,
+      executionSpeed
+    );
+});
+
+stepBtn.addEventListener('click', () => {
+  if (runtime.finished) return;
+
+  runtime.running = false;
+
+  clearTimeout(runtime.timer);
+
+  runtime.timer =
+    setTimeout(
+      applyCurrentLine,
+      Math.max(200, executionSpeed * 0.7)
+    );
+});
+
+resetBtn.addEventListener('click', reset);
+
+speedSlider.addEventListener('input', () => {
+  executionSpeed = Number(speedSlider.value);
+
+  speedLabel.textContent =
+    `${(executionSpeed / 1000)
+      .toFixed(1)
+      .replace('.', ',')} s por linha`;
+});
+
+energiaInput.addEventListener('input', () => {
+  reset();
+});
+
+reset();
+</script>
+</body>
+</html>
