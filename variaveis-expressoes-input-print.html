@@ -372,7 +372,9 @@ function reset(){
   inputFlow.innerHTML='<span class="token">aguardando</span>';
   conversionFlow.innerHTML='<span class="token">não há conversão</span>';
   expression.innerHTML='<span class="token">aguardando</span>';
-  inputPrompt.textContent='Entre com o raio do círculo (m):';
+  // Keep the input console prompt synchronized with the current program.
+  const inputLine=rt.lines.find(line => /input\s*\(/.test(line));
+  inputPrompt.textContent=inputLine ? parsePrompt(inputLine) : 'Entrada:';
   renderState();
 }
 
